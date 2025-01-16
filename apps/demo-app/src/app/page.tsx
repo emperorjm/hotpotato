@@ -1,26 +1,38 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Abstraxion,
   useAbstraxionAccount,
   useAbstraxionSigningClient,
+  useAbstraxionClient,
   useModal,
 } from "@burnt-labs/abstraxion";
-import { Button } from "@burnt-labs/ui";
+import { Button, Input } from "@burnt-labs/ui";
 import "@burnt-labs/ui/dist/index.css";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate";
-import { SignArb } from "../components/sign-arb.tsx";
 
-const seatContractAddress =
-  "xion1z70cvc08qv5764zeg3dykcyymj5z6nu4sqr7x8vl4zjef2gyp69s9mmdka";
+const nftContractAddress =
+  "xion1tdxamnxje3zu6slplxq8pur5cxudt00a2t08elc58mxkxag5wl4srwl9n7";
+const tokenId = "hotpotato";
+const treasuryAddress = "xion1yzx96j7354r05cpxt4d795pkvu0l38thqyj7yyarmflhqlj4pz7sqchgpp";
 
 type ExecuteResultOrUndefined = ExecuteResult | undefined;
 
 export default function Page(): JSX.Element {
+  // Track ownership
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
+
+  // Track errors
+  const [error, setError] = useState<string | null>(null);
+
+  // Track recipient address input
+  const [recipientAddress, setRecipientAddress] = useState<string>("");
+
   // Abstraxion hooks
   const { data: account } = useAbstraxionAccount();
   const { client, signArb, logout } = useAbstraxionSigningClient();
+  const { client: queryClient } = useAbstraxionClient();
 
   // General state hooks
   const [, setShowModal]: [
@@ -39,58 +51,85 @@ export default function Page(): JSX.Element {
     return Math.floor(d.getTime() / 1000);
   }
 
-  const now = new Date();
-  now.setSeconds(now.getSeconds() + 15);
-  const oneYearFromNow = new Date();
-  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  // Initial check on component load
+  /**useEffect(() => {
+    if (queryClient) {
+      checkOwnership();
+    }
+  }, [queryClient]);**/
 
-  async function claimSeat(): Promise<void> {
+  const checkOwnership = async () => {
     setLoading(true);
+    setError(null);
+
+    try {
+      // Query the contract
+      const response = await queryClient.queryContractSmart(nftContractAddress, {
+        owner_of: { token_id: tokenId },
+      });
+      
+      console.log('Contract response:', response);
+
+      // Check if the logged in account address is the owner
+      if (response.owner === account.bech32Address) {
+        setIsOwner(true);
+      } else {
+        setIsOwner(false);
+      }
+    } catch (error) {
+        console.error('Error querying contract:', error);
+        setError('Failed to query the contract. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  async function transferNft(): Promise<void> {
+    if (!recipientAddress) {
+      setError("Please enter a recipient address.");
+      return;
+    }
+
+    //setLoading(true);
     const msg = {
-      sales: {
-        claim_item: {
-          token_id: String(getTimestampInSeconds(now)),
-          owner: account.bech32Address,
-          token_uri: "",
-          extension: {},
-        },
+      transfer_nft: {
+        recipient: recipientAddress,
+        token_id: tokenId,
       },
     };
 
     try {
       // Use "auto" fee for most transactions
-      const claimRes = await client?.execute(
+      const transferResponse = await client?.execute(
         account.bech32Address,
-        seatContractAddress,
+        nftContractAddress,
         msg,
-        "auto",
+        {
+          amount: [{ amount: "1", denom: "uxion" }],
+          gas: "500000",
+          granter: treasuryAddress
+        },
       );
 
-      // Default cosmsjs gas multiplier for simulation is 1.4
-      // If you're finding that transactions are undersimulating, you can bump up the gas multiplier by setting fee to a number, ex. 1.5
-      // Fee amounts shouldn't stray too far away from the defaults
-      // Example:
-      // const claimRes = await client?.execute(
-      //   account.bech32Address,
-      //   seatContractAddress,
-      //   msg,
-      //   1.5,
-      // );
-
-      setExecuteResult(claimRes);
+      setExecuteResult(transferResponse);
     } catch (error) {
-      // eslint-disable-next-line no-console -- No UI exists yet to display errors
-      console.log(error);
+      console.error('Error executing transaction:', error);
+      setError("Failed to transfer NFT. Please try again.");
     } finally {
-      setLoading(false);
+      //setLoading(false);
     }
   }
 
   return (
     <main className="m-auto flex min-h-screen max-w-xs flex-col items-center justify-center gap-4 p-4">
       <h1 className="text-2xl font-bold tracking-tighter text-white">
-        ABSTRAXION
+        HOT POTATO
       </h1>
+
+      <h3 className="tracking-tighter text-white">
+        Your Address: { account.bech32Address }
+      </h3>
+
       <Button
         fullWidth
         onClick={() => {
@@ -104,33 +143,72 @@ export default function Page(): JSX.Element {
           "CONNECT"
         )}
       </Button>
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : error ? (
+        <p style={{ color: 'red' }}>{error}</p>
+      ) : isOwner === null ? (
+        // Nothing is shown if `isOwner` is still null
+        <p></p>
+      ) : isOwner ? (
+        <p className="text-green-500">Your account is the owner of the Hot Potato NFT.</p>
+      ) : (
+        <p className="text-red-500">Your account is not the owner of the Hot Potato NFT.</p>
+      )}
+
+      <Button
+        onClick={checkOwnership}
+        disabled={loading}
+        structure="base"
+        fullWidth
+      >
+        {loading ? 'Rechecking...' : 'Check Ownership'}
+      </Button>
+
+      {isOwner && client ? (
+        <>
+        <h3 className="text-sm font-normal tracking-tighter text-white mt-10">
+          TRANSFER NFT
+        </h3>
+        <Input
+            type="text"
+            placeholder="Recipient Address"
+            value={recipientAddress}
+            onChange={(e) => setRecipientAddress(e.target.value)}
+            disabled={loading}
+            className="w-full p-2 mt-2 border border-gray-300 rounded"
+          />
+          <Button
+            disabled={loading}
+            fullWidth
+            onClick={transferNft}
+            structure="base"
+            className="mb-10"
+          >
+            {loading ? "LOADING..." : "TRANSFER NFT"}
+          </Button>
+        </>
+      ) : null}
+
       {client ? (
         <>
+        {logout ? (
           <Button
             disabled={loading}
             fullWidth
             onClick={() => {
-              void claimSeat();
+              logout();
             }}
             structure="base"
           >
-            {loading ? "LOADING..." : "CLAIM SEAT"}
+            LOGOUT
           </Button>
-          {logout ? (
-            <Button
-              disabled={loading}
-              fullWidth
-              onClick={() => {
-                logout();
-              }}
-              structure="base"
-            >
-              LOGOUT
-            </Button>
-          ) : null}
-          {signArb ? <SignArb /> : null}
+        ) : null}
         </>
       ) : null}
+
+
       <Abstraxion
         onClose={() => {
           setShowModal(false);
