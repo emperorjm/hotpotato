@@ -126,7 +126,7 @@ export default function Page(): JSX.Element {
       </h1>
 
       <h3 className="tracking-tighter text-white">
-        Your Address: { account.bech32Address }
+        Your Address: {account.bech32Address ? account.bech32Address : 'Not Connected'}
       </h3>
 
       <Button
