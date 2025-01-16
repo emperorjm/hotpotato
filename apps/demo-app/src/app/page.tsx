@@ -156,14 +156,18 @@ export default function Page(): JSX.Element {
         <p className="text-red-500">Your account is not the owner of the Hot Potato NFT.</p>
       )}
 
-      <Button
-        onClick={checkOwnership}
-        disabled={loading}
-        structure="base"
-        fullWidth
-      >
-        {loading ? 'Rechecking...' : 'Check Ownership'}
-      </Button>
+      {account.bech32Address ? (
+        <>
+        <Button
+          onClick={checkOwnership}
+          disabled={loading}
+          structure="base"
+          fullWidth
+        >
+          {loading ? 'Rechecking...' : 'Check Ownership'}
+        </Button>
+        </>
+      ) : null}
 
       {isOwner && client ? (
         <>
