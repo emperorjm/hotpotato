@@ -12,10 +12,9 @@ import { Button, Input } from "@burnt-labs/ui";
 import "@burnt-labs/ui/dist/index.css";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 
-const nftContractAddress =
-  "xion1tdxamnxje3zu6slplxq8pur5cxudt00a2t08elc58mxkxag5wl4srwl9n7";
-const tokenId = "hotpotato";
-const treasuryAddress = "xion1yzx96j7354r05cpxt4d795pkvu0l38thqyj7yyarmflhqlj4pz7sqchgpp";
+const nftContractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS!;
+const tokenId = process.env.NEXT_PUBLIC_TOKEN_ID!;
+const treasuryAddress = process.env.NEXT_PUBLIC_TREASURY_ADDRESS!;
 
 type ExecuteResultOrUndefined = ExecuteResult | undefined;
 

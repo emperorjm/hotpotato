@@ -28,7 +28,7 @@
     "@burnt-labs/tailwind-config": "workspace:*",
     "@burnt-labs/tsconfig": "workspace:*",
     "@next/eslint-plugin-next": "^13.4.19",
-    "@types/node": "^20",
+    "@types/node": "^20.10.5",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.13",
